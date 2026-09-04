@@ -47,7 +47,7 @@ async function nightPhase() {
       targetId = await chooseTarget(view, player.id, `[${player.role}] Choose your target`, options);
     } else {
       const bot = BOTS[player.botLevel];
-      const decision = bot.decideNightAction(view, player.id);
+      const decision = await bot.decideNightAction(view, player.id);
       targetId = decision?.targetId ?? null;
     }
     if (targetId) roleDef.submitNightAction(game, player.id, targetId);
@@ -68,7 +68,7 @@ async function dayPhase() {
     if (player.isHuman) {
       targetId = await chooseTarget(view, player.id, "Who do you accuse? (or blank to stay quiet)", options);
     } else {
-      targetId = BOTS[player.botLevel].decideAccusation(view, player.id);
+      targetId = await BOTS[player.botLevel].decideAccusation(view, player.id);
     }
     if (targetId) {
       const target = game.players.find((p) => p.id === targetId);
@@ -93,7 +93,7 @@ async function votePhase() {
     if (player.isHuman) {
       targetId = await chooseTarget(view, player.id, "Vote to eliminate", options);
     } else {
-      targetId = BOTS[player.botLevel].decideVote(view, player.id);
+      targetId = await BOTS[player.botLevel].decideVote(view, player.id);
     }
     if (targetId) game.votes[player.id] = targetId;
   }

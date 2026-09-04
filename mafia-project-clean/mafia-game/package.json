@@ -5,6 +5,6 @@
   "type": "module",
   "main": "src/cli/play.js",
   "scripts": {
-    "play": "node src/cli/play.js"
+    "play": "node --env-file=.env src/cli/play.js"
   }
 }

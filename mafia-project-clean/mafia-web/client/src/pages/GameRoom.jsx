@@ -9,6 +9,7 @@ const IMAGE_MAP = {
   night: '/images/night.jpg',
   day: '/images/day.jpg',
   voting: '/images/voting.jpg',
+  rip: '/images/confirm-vote.jpg',
   mafia: '/images/mafia.jpg',
   doctor: '/images/doctor.jpg',
   detective: '/images/detective.jpg',
@@ -55,6 +56,9 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
   const [draft, setDraft] = useState('');
   const [nightActed, setNightActed] = useState(false);
   const [voted, setVoted] = useState(false);
+  const [nightTargetId, setNightTargetId] = useState(null);
+  const [voteTargetId, setVoteTargetId] = useState(null);
+  const [confirmVoted, setConfirmVoted] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(null);
   const [unreadCounts, setUnreadCounts] = useState({});
   const [highlightId, setHighlightId] = useState(null);
@@ -86,6 +90,7 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
     socket.on('dm_message', (msg) => {
       const otherId = msg.from === myId ? msg.to : msg.from;
       setThreads((prev) => ({ ...prev, [otherId]: [...(prev[otherId] || []), msg] }));
+      if (msg.from === HOST_ID) setActiveThread(HOST_ID);
       if (otherId !== activeThreadRef.current) {
         setUnreadCounts((prev) => ({ ...prev, [otherId]: (prev[otherId] || 0) + 1 }));
       }
@@ -107,6 +112,7 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
     });
     socket.on('night_action_confirmed', () => setNightActed(true));
     socket.on('vote_confirmed', () => setVoted(true));
+    socket.on('confirm_vote_confirmed', () => setConfirmVoted(true));
 
     return () => {
       socket.off('public_message');
@@ -116,6 +122,7 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
       socket.off('group_thread');
       socket.off('night_action_confirmed');
       socket.off('vote_confirmed');
+      socket.off('confirm_vote_confirmed');
     };
   }, [myId]);
 
@@ -123,6 +130,9 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
     setPublicLog(room.publicLog || []);
     setNightActed(false);
     setVoted(false);
+    setNightTargetId(null);
+    setVoteTargetId(null);
+    setConfirmVoted(false);
   }, [room.phase, room.round]);
 
   useEffect(() => {
@@ -188,11 +198,17 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
   }
 
   function handleNightTarget(targetId) {
+    setNightTargetId(targetId);
     socket.emit('submit_night_action', { code: room.code, targetId });
   }
 
   function handleVote(targetId) {
+    setVoteTargetId(targetId);
     socket.emit('submit_vote', { code: room.code, targetId });
+  }
+
+  function handleConfirmVote(choice) {
+    socket.emit('submit_confirm_vote', { code: room.code, choice });
   }
 
   function handleCopyCode() {
@@ -239,7 +255,7 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
     );
   }
 
-  if (room.phase === 'starting') {
+  if (room.phase === 'starting' && room.status === 'waiting') {
     return (
       <div className="page-bg dashboard-screen">
         <div className="dashboard-card glass-panel">
@@ -268,16 +284,21 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
     : myRole === 'mafia'
       ? otherAlivePlayers.filter(p => !teammateIds.has(p.id))
       : otherAlivePlayers;
+  const nightTargetName = room.players.find(p => p.id === nightTargetId)?.name;
+  const voteTargetName = room.players.find(p => p.id === voteTargetId)?.name;
 
   const phaseLabel =
+    room.phase === 'starting' ? 'Game starts in a moment...' :
     room.phase === 'ended' ? `Game over — ${room.winner === 'mafia' ? 'Mafia' : 'Town'} wins!` :
     room.phase === 'night-announce' ? `🌙 Night is falling...` :
     room.phase === 'night' ? `🌙 Night ${room.round}` :
+    room.phase === 'day-announce' ? '☀️ Sunrise report...' :
     room.phase === 'day' ? `☀️ Day ${room.round} — Discussion` :
     room.phase === 'voting' ? `🗳️ Day ${room.round} — Voting` : '';
 
   const viewingHost = activeThread === HOST_ID;
   const viewingTownSquare = activeThread === null;
+  const canSendMessage = amAlive && (!viewingTownSquare || ['day', 'voting', 'confirm-vote'].includes(room.phase));
 
   return (
     <div className="page-bg dashboard-screen game-screen">
@@ -366,8 +387,8 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
         </div>
 
         <div className="game-chat">
-          {/* Role reveal card — only visible on the Host DM tab */}
-                    {viewingHost && roleInfo && (
+          {/* Role details are delivered as a highlighted Host DM, not a separate card. */}
+                    {viewingHost && roleInfo && room.phase === 'role-card' && (
             <div className={`role-reveal-card ${alignmentClass}`}>
               <div className="role-reveal-label">You are</div>
               <div className="role-reveal-name">{roleInfo.title}</div>
@@ -391,8 +412,8 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
 
           {/* Night action picker — only on Host DM tab, since night actions are private */}
           {viewingHost && room.phase === 'night' && amAlive && hasNightAction && (
-            <div className="action-panel">
-              {nightActed ? (
+            <div className="action-panel action-control">
+              {nightActed && nightTargetId === null ? (
                 <p>Action submitted — waiting on the timer or other players...</p>
               ) : (
                 <>
@@ -403,7 +424,7 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
                   </p>
                   <div className="target-buttons">
                     {nightTargets.map((p) => (
-                      <button key={p.id} className="btn-secondary target-btn" onClick={() => handleNightTarget(p.id)}>
+                      <button key={p.id} className={`btn-secondary target-btn ${nightTargetId === p.id ? 'is-selected' : ''}`} onClick={() => handleNightTarget(p.id)}>
                         {p.name}
                       </button>
                     ))}
@@ -414,23 +435,33 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
           )}
 
           {/* Day discussion notice — only on Town Square */}
+          {viewingHost && nightTargetName && (
+            <p className="selection-note">You selected <strong>{nightTargetName}</strong> for tonight&apos;s action.</p>
+          )}
+
           {viewingTownSquare && room.phase === 'day' && amAlive && (
             <div className="action-panel">
               <p>Discuss in Town Square. Voting opens when the timer runs out.</p>
             </div>
           )}
 
+          {viewingTownSquare && room.phase === 'starting' && (
+            <div className="action-panel important-panel">
+              <p>The channel is ready. Your role and instructions will arrive by direct message when the countdown ends.</p>
+            </div>
+          )}
+
           {/* Vote picker — only on Town Square, since voting is public */}
           {viewingTownSquare && room.phase === 'voting' && amAlive && (
-            <div className="action-panel">
-              {voted ? (
+            <div className="action-panel action-control">
+              {voted && voteTargetId === null ? (
                 <p>Vote submitted — waiting on the timer or other players...</p>
               ) : (
                 <>
                   <p>Vote to eliminate:</p>
                   <div className="target-buttons">
                     {otherAlivePlayers.map((p) => (
-                      <button key={p.id} className="btn-secondary target-btn" onClick={() => handleVote(p.id)}>
+                      <button key={p.id} className={`btn-secondary target-btn ${voteTargetId === p.id ? 'is-selected' : ''}`} onClick={() => handleVote(p.id)}>
                         {p.name}
                       </button>
                     ))}
@@ -440,9 +471,30 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
             </div>
           )}
 
+          {viewingTownSquare && voteTargetName && (
+            <p className="selection-note">You voted for <strong>{voteTargetName}</strong>.</p>
+          )}
+
+          {viewingTownSquare && room.phase === 'confirm-vote' && amAlive && (
+            <div className="action-panel important-panel">
+              {confirmVoted ? (
+                <p>Decision submitted — waiting on the timer or other players...</p>
+              ) : (
+                <>
+                  <p>Confirm the elimination of {room.pendingLynch?.name || 'this player'}?</p>
+                  <div className="target-buttons">
+                    <button className="btn-primary target-btn" onClick={() => handleConfirmVote(true)}>Confirm</button>
+                    <button className="btn-secondary target-btn" onClick={() => handleConfirmVote(false)}>Spare</button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
           <div className="game-chat-log" ref={scrollRef}>
                         {messages.map((m) => {
               const isHostBubble = viewingHost && m.from === 'host';
+              const isImportant = m.from === 'Host' || m.from === 'host';
               const isGroupThread = typeof activeThread === 'string' && activeThread.startsWith('group:');
               const senderLabel = activeThread === null
                 ? m.from
@@ -452,7 +504,7 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
               return (
                 <div
                   key={m.id}
-                  className={`chat-msg ${m.id === highlightId ? 'msg-highlight' : ''} ${isHostBubble ? `host-msg ${alignmentClass}` : ''}`}
+                  className={`chat-msg ${m.id === highlightId ? 'msg-highlight' : ''} ${isHostBubble ? `host-msg ${alignmentClass}` : ''} ${isImportant ? 'important-message' : ''}`}
                 >
                   <strong>{senderLabel}:</strong> {m.text}
                   {m.image && (
@@ -466,6 +518,26 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
                 </div>
               );
             })}
+            {viewingHost && room.phase === 'night' && amAlive && hasNightAction && (
+              <div className="chat-msg important-message action-message">
+                <strong>Host:</strong> {nightTargetName ? `You selected ${nightTargetName} for tonight's action.` : 'Choose your target for tonight:'}
+                <div className="target-buttons">
+                  {nightTargets.map((p) => (
+                    <button key={p.id} className={`btn-secondary target-btn ${nightTargetId === p.id ? 'is-selected' : ''}`} onClick={() => handleNightTarget(p.id)}>{p.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {viewingTownSquare && room.phase === 'voting' && amAlive && (
+              <div className="chat-msg important-message action-message">
+                <strong>Host:</strong> {voteTargetName ? `You voted for ${voteTargetName}.` : 'Choose the player you want to eliminate:'}
+                <div className="target-buttons">
+                  {otherAlivePlayers.map((p) => (
+                    <button key={p.id} className={`btn-secondary target-btn ${voteTargetId === p.id ? 'is-selected' : ''}`} onClick={() => handleVote(p.id)}>{p.name}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div className="game-chat-input">
             <input
@@ -473,9 +545,10 @@ function GameRoom({ room, myId, playerName, onStartGame }) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-              placeholder={activeThread === null ? 'Message Town Square...' : 'Send a private message...'}
+              disabled={!canSendMessage}
+              placeholder={!amAlive ? 'You have been eliminated — messaging is locked.' : viewingTownSquare && !canSendMessage ? 'Town Square is locked until daytime.' : activeThread === null ? 'Message Town Square...' : 'Send a private message...'}
             />
-            <button className="btn-secondary" onClick={handleSend} style={{ width: 'auto' }}>Send</button>
+            <button className="btn-secondary" onClick={handleSend} disabled={!canSendMessage} style={{ width: 'auto' }}>Send</button>
           </div>
         </div>
       </div>

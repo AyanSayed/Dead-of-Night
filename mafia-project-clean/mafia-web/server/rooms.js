@@ -1,8 +1,9 @@
 const { pickBotName } = require('./botNames');
 
 const PHASE_DURATION_MS = 30000;     // 30s — action/discussion/vote windows
-const START_DELAY_MS = 5000;         // 5s — silent buffer after "Start Game" before the night announcement
-const NIGHT_REVEAL_DELAY_MS = 5000;  // 5s — between the night announcement and roles actually being DM'd
+const START_DELAY_MS = 5000;         // 5s — visible start countdown before roles are sent
+const NIGHT_REVEAL_DELAY_MS = 5000;  // 5s — between later night announcements and their role reminders
+const DAY_REVEAL_DELAY_MS = 5000;    // 5s — let the town read the sunrise narration
 const CONFIRM_VOTE_DURATION_MS = 15000; // 15s — window to confirm/spare whoever got the most votes
 
 const rooms = new Map();
@@ -89,14 +90,14 @@ function buildRoleList(playerCount) {
 }
 
 const ROLE_BRIEFS = {
-  mafia: "You are Mafia. Each night, message me (Host) the name of the player you want to eliminate. Coordinate with your fellow mafia if there's more than one of you — majority vote decides the kill.",
-  doctor: "You are the Doctor. Each night, message me (Host) the name of the player you want to protect from the mafia's kill. You may protect yourself.",
-  detective: "You are the Detective. Each night, message me (Host) the name of a player you want to investigate. I'll tell you privately whether they're Mafia or not.",
-  villager: "You are a Villager. You have no night action — use the day to discuss and vote out anyone you suspect is Mafia.",
+  mafia: "ROLE: Mafia. ACTION: Each night, choose a living non-Mafia player to eliminate. WIN: Mafia wins when the number of living Mafia equals or exceeds the living town.",
+  doctor: "ROLE: Doctor. ACTION: Each night, choose one living player to protect; you may protect yourself. WIN: Town wins by eliminating every Mafia member.",
+  detective: "ROLE: Detective. ACTION: Each night, investigate one living player. I will tell you whether your selected target is Mafia. WIN: Town wins by eliminating every Mafia member.",
+  villager: "ROLE: Villager. ACTION: You have no night action; discuss during the day and vote carefully. WIN: Town wins by eliminating every Mafia member.",
 };
 
-// Called the instant the host clicks "Start Game". Assigns roles, but does NOT
-// reveal them yet — that happens 15s later in beginNightPhase().
+// Called the instant the host clicks "Start Game". The town channel stays
+// available during a five-second countdown; roles are then sent by DM.
 function startGame(code, requesterSocketId) {
   const room = rooms.get(code);
   if (!room) return { error: 'Room not found' };
@@ -117,6 +118,7 @@ function startGame(code, requesterSocketId) {
   room.pendingLynchId = null;
   room.confirmVotes = {};
   room.winner = null;
+  addPublicMessage(code, 'Host', 'The game will start in 5 seconds. Get ready!');
 
   return { room };
 }
@@ -206,11 +208,15 @@ function resolveNight(code) {
     addPublicMessage(code, 'Host', `The sun rises. Nobody died last night.`, 'day');
   }
 
+  if (killedPlayer) addPublicMessage(code, 'Host', getDeathStory(killedPlayer.name));
+
   if (detective && checkTargetId) {
     const checkedPlayer = room.players.find(p => p.id === checkTargetId);
     if (checkedPlayer) {
-      const result = checkedPlayer.role === 'mafia' ? 'IS Mafia' : 'is NOT Mafia';
-      addDirectMessage(code, 'host', detective.id, `Your investigation of ${checkedPlayer.name}: they ${result}.`);
+      const result = checkedPlayer.role === 'mafia'
+        ? `Yes — your selected target, ${checkedPlayer.name}, is Mafia.`
+        : `No — your selected target, ${checkedPlayer.name}, is not Mafia.`;
+      addDirectMessage(code, 'host', detective.id, result);
     }
   }
 
@@ -226,9 +232,18 @@ function resolveNight(code) {
     return { room };
   }
 
+  room.phase = 'day-announce';
+  room.phaseEndsAt = Date.now() + DAY_REVEAL_DELAY_MS;
+  return { room };
+}
+
+function beginDayDiscussion(code) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  if (room.phase !== 'day-announce') return { error: 'Not in day announcement phase' };
   room.phase = 'day';
   room.phaseEndsAt = Date.now() + PHASE_DURATION_MS;
-  addPublicMessage(code, 'Host', 'Discuss in Town Square. Voting opens shortly.', 'day');
+  addPublicMessage(code, 'Host', 'Discussion is now open. Talk in Town Square before voting begins.', 'day');
   return { room };
 }
 
@@ -422,10 +437,32 @@ function addGroupMessage(code, groupId, fromId, fromName, text) {
   return { message: msg, group };
 }
 
-function getGroupThread(code, groupId) {
+function getGroupThread(code, groupId, playerId) {
   const room = rooms.get(code);
-  if (!room) return [];
+  const group = room && room.groups && room.groups[groupId];
+  if (!group || !group.memberIds.includes(playerId)) return null;
   return (room.groupMessages && room.groupMessages[groupId]) || [];
+}
+
+function resetRoomForReplay(code) {
+  const room = rooms.get(code);
+  if (!room) return { error: 'Room not found' };
+  room.status = 'waiting';
+  room.phase = 'waiting';
+  room.round = 0;
+  room.winner = null;
+  room.phaseEndsAt = null;
+  room.publicLog = [];
+  room.dms = {};
+  room.groups = {};
+  room.groupMessages = {};
+  room.nightActions = {};
+  room.dayVotes = {};
+  room.confirmVotes = {};
+  room.pendingLynchId = null;
+  room.lastNightResult = null;
+  room.players.forEach((p) => { p.role = null; p.alive = true; });
+  return { room };
 }
 
 function getThread(code, idA, idB) {
@@ -489,11 +526,24 @@ function getRoomState(code, forPlayerId) {
 function getRoomRaw(code) { return rooms.get(code); }
 
 module.exports = {
-  PHASE_DURATION_MS, START_DELAY_MS, NIGHT_REVEAL_DELAY_MS, CONFIRM_VOTE_DURATION_MS,
+  PHASE_DURATION_MS, START_DELAY_MS, NIGHT_REVEAL_DELAY_MS, DAY_REVEAL_DELAY_MS, CONFIRM_VOTE_DURATION_MS,
   createRoom, joinRoom, addBot, removePlayer, getRoomState, getRoomRaw,
-  startGame, announceNight, beginNightPhase, getRoleBrief, submitNightAction, isNightComplete, resolveNight,
+  startGame, announceNight, beginNightPhase, beginDayDiscussion, getRoleBrief, submitNightAction, isNightComplete, resolveNight,
   startVotingPhase, submitVote, isVoteComplete, resolveVote,
   submitConfirmVote, isConfirmVoteComplete, resolveConfirmVote,
   addPublicMessage, addDirectMessage, getThread, getPlayer,
-  createGroup, addGroupMessage, getGroupThread,
+  createGroup, addGroupMessage, getGroupThread, resetRoomForReplay,
 };
+
+const DEATH_STORIES = [
+  '{name} was last seen wandering the empty streets after midnight. By dawn, only a dropped lantern remained.',
+  'A neighbour heard hurried footsteps and a door slam. At sunrise, {name} had vanished into the night forever.',
+  '{name} took a shortcut through the foggy square. The Mafia were waiting in the shadows.',
+  'The town found {name} beneath a flickering streetlamp, with no witnesses brave enough to speak.',
+  '{name} went out for one last late-night walk. The silence of the street told the rest of the story.',
+];
+
+function getDeathStory(name) {
+  const story = DEATH_STORIES[Math.floor(Math.random() * DEATH_STORIES.length)];
+  return story.replace('{name}', name);
+}
