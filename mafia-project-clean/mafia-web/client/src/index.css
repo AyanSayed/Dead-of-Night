@@ -1,0 +1,678 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --text: #cbd0dc;
+  --text-h: #f5f3ff;
+  --bg: #0d0e13;
+  --border: #2e303a;
+  --accent: #c084fc;
+  --accent-2: #f43f5e;
+  --accent-bg: rgba(192, 132, 252, 0.15);
+  --panel-bg: rgba(15, 13, 22, 0.72);
+
+  --sans: 'Inter', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --display: 'Cinzel', Georgia, 'Times New Roman', serif;
+
+  font: 17px/1.5 var(--sans);
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3 {
+  font-family: var(--display);
+  font-weight: 700;
+  color: var(--text-h);
+  letter-spacing: 0.02em;
+  margin: 0 0 0.5em;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+input {
+  font: inherit;
+}
+
+/* ---------- Full-bleed photo background, shared by login + dashboard ---------- */
+.page-bg {
+  position: relative;
+  flex: 1;
+  min-height: 100svh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background-image:
+    linear-gradient(180deg, rgba(8, 6, 18, 0.55) 0%, rgba(8, 6, 18, 0.75) 55%, rgba(6, 5, 12, 0.92) 100%),
+    url('/images/town-square.jpg');
+  background-size: cover;
+  background-position: center 35%;
+  background-attachment: fixed;
+}
+
+/* A second, redder tint of the same photo for Rules / Roles, so it feels
+   related to the login/dashboard art but visually distinct. Swap the
+   background-image url below if you'd rather use a different picture. */
+.page-bg--lore {
+  background-image:
+    linear-gradient(160deg, rgba(46, 6, 14, 0.72) 0%, rgba(10, 6, 16, 0.88) 60%, rgba(6, 5, 12, 0.96) 100%),
+    url('/images/town-square.jpg');
+  background-position: center 20%;
+}
+
+/* ---------- Shared "glass" panel used to keep text readable over photos ---------- */
+.glass-panel {
+  background: var(--panel-bg);
+  border: 1px solid rgba(192, 132, 252, 0.25);
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.app-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+}
+
+/* ---------- Login page ---------- */
+.login-screen {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.login-card {
+  width: min(440px, 100%);
+  padding: 48px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.login-title {
+  font-size: clamp(2.6rem, 8vw, 4rem);
+  text-transform: uppercase;
+  color: var(--text-h);
+  text-shadow: 0 0 24px rgba(192, 132, 252, 0.55), 0 4px 18px rgba(0, 0, 0, 0.8);
+  margin: 0;
+}
+
+.login-subtitle {
+  font-size: 1.15rem;
+  color: var(--text);
+  margin: -12px 0 8px;
+}
+
+.login-input {
+  width: 100%;
+  padding: 16px 18px;
+  font-size: 1.15rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-h);
+  text-align: center;
+}
+
+.login-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  color: #16101f;
+  background: linear-gradient(135deg, var(--accent), #a855f7);
+  box-shadow: 0 10px 30px rgba(192, 132, 252, 0.35);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(192, 132, 252, 0.45);
+}
+
+.btn-secondary {
+  width: 100%;
+  padding: 16px 24px;
+  font-size: 1.2rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.btn-secondary:hover {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.error-text {
+  color: var(--accent-2);
+  font-size: 1rem;
+  margin: 0;
+}
+
+/* ---------- Hamburger + sidebar drawer ---------- */
+.hamburger-btn {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  z-index: 40;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 12px;
+  border: 1px solid rgba(192, 132, 252, 0.35);
+  background: rgba(13, 11, 20, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.hamburger-btn span {
+  display: block;
+  width: 24px;
+  height: 2px;
+  background: var(--text-h);
+  border-radius: 2px;
+}
+
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 45;
+}
+
+.sidebar-backdrop.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(300px, 82vw);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 90px 22px 24px;
+  background: rgba(12, 10, 18, 0.92);
+  border-right: 1px solid rgba(192, 132, 252, 0.25);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transform: translateX(-100%);
+  transition: transform 0.25s ease;
+  z-index: 50;
+}
+
+.sidebar-drawer.is-open {
+  transform: translateX(0);
+}
+
+.sidebar-title {
+  font-family: var(--display);
+  font-size: 1.6rem;
+  color: var(--text-h);
+  margin-bottom: 18px;
+  letter-spacing: 0.08em;
+}
+
+.sidebar-link {
+  text-align: left;
+  padding: 14px 16px;
+  font-size: 1.1rem;
+  font-weight: 500;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text);
+}
+
+.sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-h);
+}
+
+.sidebar-link.is-active {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--text-h);
+}
+
+.sidebar-close {
+  margin-top: auto;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+}
+
+/* ---------- Dashboard ---------- */
+.dashboard-screen {
+  align-items: center;
+  justify-content: center;
+  padding: 100px 24px 40px;
+}
+
+.dashboard-card {
+  width: min(480px, 100%);
+  padding: 44px 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  text-align: center;
+}
+
+.dashboard-title {
+  font-size: clamp(2.2rem, 6vw, 3rem);
+  margin: 0;
+}
+
+.dashboard-greeting {
+  font-size: 1.2rem;
+  margin: -10px 0 4px;
+}
+
+.dashboard-greeting strong {
+  color: var(--accent);
+}
+
+.dashboard-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.join-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.join-row .login-input {
+  text-align: left;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+/* ---------- Rules / Roles pages ---------- */
+.lore-screen {
+  padding: 100px 20px 60px;
+  align-items: center;
+}
+
+.lore-content {
+  width: min(880px, 100%);
+  padding: 40px clamp(24px, 5vw, 56px) 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lore-content h1 {
+  font-size: clamp(2.4rem, 6vw, 3.4rem);
+}
+
+.lore-content h2 {
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  margin-top: 1.4em;
+  color: var(--accent);
+}
+
+.lore-content p,
+.lore-content li {
+  font-size: clamp(1.05rem, 2vw, 1.25rem);
+  line-height: 1.65;
+}
+
+.lore-content ul,
+.lore-content ol {
+  padding-left: 1.4em;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.back-btn {
+  align-self: flex-start;
+  padding: 10px 18px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-h);
+  margin-bottom: 18px;
+}
+
+.back-btn:hover {
+  border-color: var(--accent);
+}
+
+.role-group-title {
+  font-size: clamp(1.4rem, 3.5vw, 1.8rem);
+}
+
+.role-card {
+  border-radius: 12px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.role-card strong {
+  font-size: 1.2rem;
+}
+
+.role-card .role-action {
+  margin-left: 10px;
+  font-size: 0.95rem;
+  opacity: 0.75;
+}
+
+.role-card p {
+  margin: 6px 0 0;
+  font-size: 1.05rem;
+}
+
+.game-screen {
+  align-items: stretch;
+}
+
+.game-panel {
+  display: flex;
+  width: min(900px, 92vw);
+  height: min(600px, 80vh);
+  padding: 0;
+  overflow: hidden;
+}
+
+.game-sidebar {
+  width: 220px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+  overflow-y: auto;
+  padding: 12px 0;
+  flex-shrink: 0;
+}
+
+.role-banner {
+  padding: 10px 16px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.chat-contact {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.chat-contact:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chat-contact.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  font-weight: 600;
+}
+
+.game-chat {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.game-chat-log {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.chat-msg {
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.game-chat-input {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.game-chat-input .login-input {
+  flex: 1;
+}
+
+.countdown {
+  margin-top: 4px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.room-code-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.copy-btn {
+  width: auto;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.sidebar-section-label {
+  padding: 10px 16px 4px;
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
+
+.channel-contact {
+  font-weight: 600;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 4px;
+}
+
+.dm-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-contact {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.unread-badge {
+  background: #ff6b6b;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  flex-shrink: 0;
+}
+
+.msg-highlight {
+  animation: highlightFade 2s ease-out;
+}
+
+@keyframes highlightFade {
+  0% { background: rgba(147, 51, 234, 0.35); }
+  100% { background: transparent; }
+}
+
+.role-reveal-card {
+  padding: 20px 16px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(147, 51, 234, 0.10);
+}
+
+.role-reveal-label {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.role-reveal-name {
+  font-size: 2rem;
+  font-weight: 800;
+  margin: 4px 0 10px;
+  color: #d8b4fe;
+}
+
+.role-reveal-desc {
+  font-size: 0.9rem;
+  opacity: 0.85;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.align-mafia {
+  background: rgba(220, 38, 38, 0.18) !important;
+  border-color: rgba(220, 38, 38, 0.4) !important;
+}
+
+.align-town {
+  background: rgba(34, 197, 94, 0.18) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+.align-neutral {
+  background: rgba(148, 163, 184, 0.18) !important;
+  border-color: rgba(148, 163, 184, 0.4) !important;
+}
+
+.host-msg {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+}
+
+.teammate-list {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
+.teammate-label {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.teammate-names {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.chat-msg-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  max-height: calc(100vh - 220px);
+  object-fit: contain;
+  border-radius: 8px;
+  margin-top: 6px;
+  margin-bottom: 24px;
+}
+
+.group-new-btn {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+.group-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.group-modal {
+  width: 320px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group-member-list {
+  max-height: 200px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.group-member-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
