@@ -1,0 +1,10 @@
+{
+  "name": "ai-mafia-game",
+  "version": "0.1.0",
+  "description": "V1: engine + Low/Medium rule-based bots, CLI playable",
+  "type": "module",
+  "main": "src/cli/play.js",
+  "scripts": {
+    "play": "node --env-file=.env src/cli/play.js"
+  }
+}
